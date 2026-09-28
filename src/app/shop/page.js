@@ -1,44 +1,35 @@
 import Link from "next/link";
 import AddToCartButton from "@/app/AddToCartButton";
+import {
+  MEDUSA_BACKEND_URL,
+  MEDUSA_PUBLISHABLE_KEY,
+} from "@/lib/medusa";
+
+export const dynamic = "force-dynamic";
 
 async function getProducts() {
+  if (!MEDUSA_BACKEND_URL || !MEDUSA_PUBLISHABLE_KEY) {
+    console.error(
+      "Medusa backend URL and publishable key must be configured."
+    );
+    return [];
+  }
+
   try {
-    const backendUrl =
-      process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL || "http://localhost:9000";
-    const apiKey = process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY;
-
-    // 1. Try fetching with publishable key
-    if (apiKey) {
-      try {
-        const resWithKey = await fetch(
-          `${backendUrl}/store/products?limit=50&fields=*variants,*variants.prices,*images`,
-          {
-            headers: {
-              "x-publishable-api-key": apiKey,
-            },
-            cache: "no-store",
-          }
-        );
-        if (resWithKey.ok) {
-          const data = await resWithKey.json();
-          if (data.products && data.products.length > 0) {
-            return data.products;
-          }
-        }
-      } catch (err) {
-        console.warn("Product fetch with key failed:", err);
-      }
-    }
-
-    // 2. Fallback fetch without publishable key
     const response = await fetch(
-      `${backendUrl}/store/products?limit=50&fields=*variants,*variants.prices,*images`,
+      `${MEDUSA_BACKEND_URL}/store/products?limit=50&fields=*variants,*variants.prices,*images`,
       {
+        headers: {
+          "x-publishable-api-key": MEDUSA_PUBLISHABLE_KEY,
+        },
         cache: "no-store",
       }
     );
 
     if (!response.ok) {
+      console.error(
+        `Shop product request failed with HTTP ${response.status}.`
+      );
       return [];
     }
 
@@ -84,12 +75,13 @@ export default async function Shop() {
 
         {products.length === 0 ? (
           <div className="mt-10 border bg-white p-10 text-center">
-            <h2 className="font-semibold text-lg">
+            <h2 className="text-lg font-semibold">
               No products found.
             </h2>
 
             <p className="mt-2 text-gray-500">
-              Make sure Medusa backend is running on port 9000 and products are created.
+              Make sure Medusa backend is running on port 9000
+              and products are created.
             </p>
           </div>
         ) : (
@@ -99,17 +91,25 @@ export default async function Shop() {
                 product.thumbnail ||
                 product.images?.[0]?.url ||
                 "";
+
               const variantId = product.variants?.[0]?.id;
-              
+
               const rawPrice =
-                product.variants?.[0]?.calculated_price?.calculated_amount ||
+                product.variants?.[0]?.calculated_price
+                  ?.calculated_amount ||
                 product.variants?.[0]?.prices?.[0]?.amount ||
                 0;
+
               const formattedPrice =
-                rawPrice > 0 ? `₹${rawPrice.toLocaleString("en-IN")}` : "";
+                rawPrice > 0
+                  ? `₹${rawPrice.toLocaleString("en-IN")}`
+                  : "";
 
               return (
-                <article key={product.id} className="flex flex-col justify-between bg-white p-4 shadow-sm border border-neutral-100">
+                <article
+                  key={product.id}
+                  className="flex flex-col justify-between border border-neutral-100 bg-white p-4 shadow-sm"
+                >
                   <div>
                     <div className="aspect-[3/4] overflow-hidden bg-gray-100">
                       {image ? (
@@ -136,7 +136,10 @@ export default async function Shop() {
                     )}
                   </div>
 
-                  <AddToCartButton variantId={variantId} product={product}>
+                  <AddToCartButton
+                    variantId={variantId}
+                    product={product}
+                  >
                     ADD TO CART
                   </AddToCartButton>
                 </article>
